@@ -786,7 +786,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       datanode.getMetrics().incrRamDiskBlocksReadHits();
     }
 
-    if (info == null || info.blockDataExists()) {
+    if (info == null || !info.blockDataExists()) {
       throw new IOException("No data exists for block " + b);
     }
     return getBlockInputStreamWithCheckingPmemCache(info, b, seekOffset);

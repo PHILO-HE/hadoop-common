@@ -2273,6 +2273,8 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
       LOG.warn("FsDatasetImpl.shutdown ignoring InterruptedException " +
                "from LazyWriter.join");
     }
+
+    cacheManager.shutdown();
   }
 
   @Override // FSDatasetMBean

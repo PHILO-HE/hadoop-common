@@ -31,6 +31,7 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CACHEREPORT_INTERVAL_MSEC
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_SOCKET_TIMEOUT_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_KEY;
+
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_CACHE_PMEM_DIRS_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_MAX_LOCKED_MEMORY_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_MAX_LOCKED_MEMORY_KEY;
@@ -105,9 +106,7 @@ public class DNConf {
   final long xceiverStopTimeout;
   final long restartReplicaExpiry;
 
-//  private final Class<? extends MappableBlockLoader> cacheLoaderClass;
   final long maxLockedMemory;
-//  private final long maxLockedPmem;
   private final String[] pmemDirs;
 
   private final long bpReadyTimeout;
@@ -266,9 +265,32 @@ public class DNConf {
     return maxLockedMemory;
   }
 
-//  public long getMaxLockedPmem() {
-//    return maxLockedPmem;
-//  }
+  /**
+   * Returns true if connect to datanode via hostname
+   * 
+   * @return boolean true if connect to datanode via hostname
+   */
+  public boolean getConnectToDnViaHostname() {
+    return connectToDnViaHostname;
+  }
+
+  /**
+   * Returns socket timeout
+   * 
+   * @return int socket timeout
+   */
+  public int getSocketTimeout() {
+    return socketTimeout;
+  }
+
+  /**
+   * Returns socket write timeout
+   * 
+   * @return int socket write timeout
+   */
+  public int getSocketWriteTimeout() {
+    return socketWriteTimeout;
+  }
 
   /**
    * Returns the SaslPropertiesResolver configured for use with
@@ -316,10 +338,6 @@ public class DNConf {
   public boolean getDataTransferServerTcpNoDelay() {
     return tcpNoDelay;
   }
-
-//  public Class<? extends MappableBlockLoader> getCacheLoaderClass() {
-//    return cacheLoaderClass;
-//  }
 
   public String[] getPmemVolumes() {
     return pmemDirs;

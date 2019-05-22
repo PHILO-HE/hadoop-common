@@ -25,6 +25,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.URI;
+import java.nio.channels.Channels;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
@@ -155,5 +158,16 @@ public class FsDatasetUtil {
     };
 
     FsDatasetImpl.computeChecksum(wrapper, dstMeta, smallBufferSize, conf);
+  }
+
+  public static void deleteMappedFile(String filePath) throws IOException {
+    if (filePath == null) {
+      throw new IOException("The filePath should not be null!");
+    }
+    boolean result = Files.deleteIfExists(Paths.get(filePath));
+    if (!result) {
+      throw new IOException(
+          "Failed to delete the mapped file: " + filePath);
+    }
   }
 }

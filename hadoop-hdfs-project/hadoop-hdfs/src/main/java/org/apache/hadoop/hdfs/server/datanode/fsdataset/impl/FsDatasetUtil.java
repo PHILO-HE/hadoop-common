@@ -99,6 +99,19 @@ public class FsDatasetUtil {
     }
   }
 
+  public static InputStream getInputStreamAndSeek(File file, long offset)
+      throws IOException {
+    RandomAccessFile raf = null;
+    try {
+      raf = new RandomAccessFile(file, "r");
+      raf.seek(offset);
+      return Channels.newInputStream(raf.getChannel());
+    } catch (IOException ioe) {
+      IOUtils.cleanupWithLogger(null, raf);
+      throw ioe;
+    }
+  }
+
   /**
    * Find the meta-file for the specified block file
    * and then return the generation stamp from the name of the meta-file.

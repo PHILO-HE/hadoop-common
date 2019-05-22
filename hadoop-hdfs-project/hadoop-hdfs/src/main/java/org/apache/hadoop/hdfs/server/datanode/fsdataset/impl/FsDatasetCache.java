@@ -52,7 +52,6 @@ import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.hdfs.protocol.BlockListAsLongs;
 import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
-import org.apache.hadoop.io.nativeio.NativeIO;
 import org.apache.hadoop.util.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,85 +130,9 @@ public class FsDatasetCache {
 
   private final long revocationPollingMs;
 
-  /**
-   * The approximate amount of cache space in use.
-   *
-   * This number is an overestimate, counting bytes that will be used only
-   * if pending caching operations succeed.  It does not take into account
-   * pending uncaching operations.
-   *
-   * This overestimate is more useful to the NameNode than an underestimate,
-   * since we don't want the NameNode to assign us more replicas than
-   * we can cache, because of the current batch of operations.
-   */
-  private final UsedBytesCount usedBytesCount;
-
-  public static class PageRounder {
-    private final long osPageSize =
-        NativeIO.POSIX.getCacheManipulator().getOperatingSystemPageSize();
-
-    /**
-     * Round up a number to the operating system page size.
-     */
-    public long round(long count) {
-      long newCount = 
-          (count + (osPageSize - 1)) / osPageSize;
-      return newCount * osPageSize;
-    }
-  }
-
-  private class UsedBytesCount {
-    private final AtomicLong usedBytes = new AtomicLong(0);
-    
-    private final PageRounder rounder = new PageRounder();
-
-    /**
-     * Try to reserve more bytes.
-     *
-     * @param count    The number of bytes to add.  We will round this
-     *                 up to the page size.
-     *
-     * @return         The new number of usedBytes if we succeeded;
-     *                 -1 if we failed.
-     */
-    long reserve(long count) {
-      count = rounder.round(count);
-      while (true) {
-        long cur = usedBytes.get();
-        long next = cur + count;
-        if (next > maxBytes) {
-          return -1;
-        }
-        if (usedBytes.compareAndSet(cur, next)) {
-          return next;
-        }
-      }
-    }
-    
-    /**
-     * Release some bytes that we're using.
-     *
-     * @param count    The number of bytes to release.  We will round this
-     *                 up to the page size.
-     *
-     * @return         The new number of usedBytes.
-     */
-    long release(long count) {
-      count = rounder.round(count);
-      return usedBytes.addAndGet(-count);
-    }
-    
-    long get() {
-      return usedBytes.get();
-    }
-  }
-
-  /**
-   * The total cache capacity in bytes.
-   */
-  private final long maxBytes;
-
   private final MappableBlockLoader mappableBlockLoader;
+
+  private final MemoryCacheStats memCacheStats;
 
   /**
    * Number of cache commands that could not be completed successfully
@@ -222,12 +145,10 @@ public class FsDatasetCache {
 
   public FsDatasetCache(FsDatasetImpl dataset) throws IOException {
     this.dataset = dataset;
-    this.maxBytes = dataset.datanode.getDnConf().getMaxLockedMemory();
     ThreadFactory workerFactory = new ThreadFactoryBuilder()
         .setDaemon(true)
         .setNameFormat("FsDatasetCache-%d-" + dataset.toString())
         .build();
-    this.usedBytesCount = new UsedBytesCount();
     this.uncachingExecutor = new ThreadPoolExecutor(
             0, 1,
             60, TimeUnit.SECONDS,
@@ -252,7 +173,11 @@ public class FsDatasetCache {
               ".  Reconfigure this to " + minRevocationPollingMs);
     }
     this.revocationPollingMs = confRevocationPollingMs;
-    this.mappableBlockLoader = new MemoryMappableBlockLoader();
+
+    this.mappableBlockLoader = new MemoryMappableBlockLoader(this);
+    // Both lazy writer and read cache are sharing this statistics.
+    this.memCacheStats = new MemoryCacheStats(
+        dataset.datanode.getDnConf().getMaxLockedMemory());
   }
 
   /**
@@ -366,14 +291,14 @@ public class FsDatasetCache {
       MappableBlock mappableBlock = null;
       ExtendedBlock extBlk = new ExtendedBlock(key.getBlockPoolId(),
           key.getBlockId(), length, genstamp);
-      long newUsedBytes = usedBytesCount.reserve(length);
+      long newUsedBytes = mappableBlockLoader.reserve(length);
       boolean reservedBytes = false;
       try {
         if (newUsedBytes < 0) {
           LOG.warn("Failed to cache " + key + ": could not reserve " + length +
               " more bytes in the cache: " +
               DFSConfigKeys.DFS_DATANODE_MAX_LOCKED_MEMORY_KEY +
-              " of " + maxBytes + " exceeded.");
+              " of " + memCacheStats.getCacheCapacity() + " exceeded.");
           return;
         }
         reservedBytes = true;
@@ -426,10 +351,10 @@ public class FsDatasetCache {
         IOUtils.closeQuietly(metaIn);
         if (!success) {
           if (reservedBytes) {
-            usedBytesCount.release(length);
+            mappableBlockLoader.release(length);
           }
           LOG.debug("Caching of {} was aborted.  We are now caching only {} "
-                  + "bytes in total.", key, usedBytesCount.get());
+                  + "bytes in total.", key, memCacheStats.getCacheUsed());
           IOUtils.closeQuietly(mappableBlock);
           numBlocksFailedToCache.incrementAndGet();
 
@@ -503,8 +428,8 @@ public class FsDatasetCache {
       synchronized (FsDatasetCache.this) {
         mappableBlockMap.remove(key);
       }
-      long newUsedBytes =
-          usedBytesCount.release(value.mappableBlock.getLength());
+      long newUsedBytes = mappableBlockLoader
+          .release(value.mappableBlock.getLength());
       numBlocksCached.addAndGet(-1);
       dataset.datanode.getMetrics().incrBlocksUncached(1);
       if (revocationTimeMs != 0) {
@@ -523,14 +448,14 @@ public class FsDatasetCache {
    * Get the approximate amount of cache space used.
    */
   public long getCacheUsed() {
-    return usedBytesCount.get();
+    return memCacheStats.getCacheUsed();
   }
 
   /**
    * Get the maximum amount of bytes we can cache.  This is a constant.
    */
   public long getCacheCapacity() {
-    return maxBytes;
+    return memCacheStats.getCacheCapacity();
   }
 
   public long getNumBlocksFailedToCache() {

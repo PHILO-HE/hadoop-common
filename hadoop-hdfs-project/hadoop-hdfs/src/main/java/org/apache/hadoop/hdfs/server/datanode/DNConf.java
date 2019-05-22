@@ -27,9 +27,11 @@ import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCKREPORT_SPLIT_THRESHO
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_BLOCKREPORT_SPLIT_THRESHOLD_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CACHEREPORT_INTERVAL_MSEC_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CACHEREPORT_INTERVAL_MSEC_KEY;
+
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_SOCKET_TIMEOUT_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_CLIENT_WRITE_PACKET_SIZE_KEY;
+import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_CACHE_PMEM_DIRS_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_MAX_LOCKED_MEMORY_DEFAULT;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_MAX_LOCKED_MEMORY_KEY;
 import static org.apache.hadoop.hdfs.DFSConfigKeys.DFS_DATANODE_SOCKET_WRITE_TIMEOUT_KEY;
@@ -103,7 +105,10 @@ public class DNConf {
   final long xceiverStopTimeout;
   final long restartReplicaExpiry;
 
+//  private final Class<? extends MappableBlockLoader> cacheLoaderClass;
   final long maxLockedMemory;
+//  private final long maxLockedPmem;
+  private final String[] pmemDirs;
 
   private final long bpReadyTimeout;
 
@@ -208,6 +213,9 @@ public class DNConf {
         DFS_DATANODE_MAX_LOCKED_MEMORY_KEY,
         DFS_DATANODE_MAX_LOCKED_MEMORY_DEFAULT);
 
+    this.pmemDirs = getConf().getTrimmedStrings(
+        DFS_DATANODE_CACHE_PMEM_DIRS_KEY);
+
     this.restartReplicaExpiry = conf.getLong(
         DFS_DATANODE_RESTART_REPLICA_EXPIRY_KEY,
         DFS_DATANODE_RESTART_REPLICA_EXPIRY_DEFAULT) * 1000L;
@@ -258,6 +266,10 @@ public class DNConf {
     return maxLockedMemory;
   }
 
+//  public long getMaxLockedPmem() {
+//    return maxLockedPmem;
+//  }
+
   /**
    * Returns the SaslPropertiesResolver configured for use with
    * DataTransferProtocol, or null if not configured.
@@ -303,5 +315,13 @@ public class DNConf {
 
   public boolean getDataTransferServerTcpNoDelay() {
     return tcpNoDelay;
+  }
+
+//  public Class<? extends MappableBlockLoader> getCacheLoaderClass() {
+//    return cacheLoaderClass;
+//  }
+
+  public String[] getPmemVolumes() {
+    return pmemDirs;
   }
 }

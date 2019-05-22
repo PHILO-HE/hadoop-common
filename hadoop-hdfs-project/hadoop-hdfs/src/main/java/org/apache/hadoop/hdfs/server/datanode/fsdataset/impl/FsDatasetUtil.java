@@ -20,14 +20,19 @@ package org.apache.hadoop.hdfs.server.datanode.fsdataset.impl;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.nio.channels.Channels;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 import com.google.common.base.Preconditions;
 import org.apache.hadoop.classification.InterfaceAudience;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.protocol.Block;
 import org.apache.hadoop.hdfs.server.common.GenerationStamp;
 import org.apache.hadoop.hdfs.server.datanode.DatanodeUtil;
+import org.apache.hadoop.io.IOUtils;
 
 /** Utility methods. */
 @InterfaceAudience.Private
@@ -71,6 +76,19 @@ public class FsDatasetUtil {
           + Arrays.asList(matches));
     }
     return matches[0];
+  }
+
+  public static InputStream getInputStreamAndSeek(File file, long offset)
+      throws IOException {
+    RandomAccessFile raf = null;
+    try {
+      raf = new RandomAccessFile(file, "r");
+      raf.seek(offset);
+      return Channels.newInputStream(raf.getChannel());
+    } catch(IOException ioe) {
+      IOUtils.cleanupWithLogger(null, raf);
+      throw ioe;
+    }
   }
 
   /**
@@ -118,5 +136,16 @@ public class FsDatasetUtil {
     Preconditions.checkNotNull(dstMeta);
     Preconditions.checkNotNull(blockFile);
     FsDatasetImpl.computeChecksum(srcMeta, dstMeta, blockFile);
+  }
+
+  public static void deleteMappedFile(String filePath) throws IOException {
+    if (filePath == null) {
+      throw new IOException("The filePath should not be null!");
+    }
+    boolean result = Files.deleteIfExists(Paths.get(filePath));
+    if (!result) {
+      throw new IOException(
+          "Failed to delete the mapped file: " + filePath);
+    }
   }
 }

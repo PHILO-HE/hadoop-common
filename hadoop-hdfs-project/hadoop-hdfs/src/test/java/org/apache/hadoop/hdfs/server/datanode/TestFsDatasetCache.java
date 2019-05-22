@@ -18,6 +18,7 @@
 package org.apache.hadoop.hdfs.server.datanode;
 
 import net.jcip.annotations.NotThreadSafe;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.MemoryCacheStats;
 import org.apache.hadoop.hdfs.server.protocol.SlowDiskReports;
 import static org.apache.hadoop.test.MetricsAsserts.getMetrics;
 import static org.junit.Assert.assertEquals;
@@ -62,7 +63,6 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetCache;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetCache.PageRounder;
 import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
 import org.apache.hadoop.hdfs.server.protocol.BlockIdCommand;
@@ -121,7 +121,7 @@ public class TestFsDatasetCache {
    * shared read lock. The test acquires the write lock for exclusive access.
    */
   private static ReadWriteLock lock = new ReentrantReadWriteLock(true);
-  private static final PageRounder rounder = new PageRounder();
+  private static final MemoryCacheStats.PageRounder rounder = new MemoryCacheStats.PageRounder();
   private static CacheManipulator prevCacheManipulator;
   private static DataNodeFaultInjector oldInjector;
 

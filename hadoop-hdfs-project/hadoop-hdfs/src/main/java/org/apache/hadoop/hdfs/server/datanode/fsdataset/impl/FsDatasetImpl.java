@@ -461,7 +461,7 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
 
   /**
    * Removes a set of volumes from FsDataset.
-   * @param volumesToRemove a set of absolute root path of each volume.
+   * @param storageLocsToRemove a set of absolute root path of each volume.
    * @param clearFailure set true to clear failure information.
    */
   @Override
@@ -739,6 +739,21 @@ class FsDatasetImpl implements FsDatasetSpi<FsVolumeImpl> {
   public InputStream getBlockInputStream(ExtendedBlock b,
       long seekOffset) throws IOException {
     File blockFile = getBlockFileNoExistsCheck(b, true);
+
+    /**
+     * Check whether the replica is cached to persistent memory.
+     * If so, get DataInputStream of the corresponding cache file on pmem.
+     * The code logic comes from getBlockInputStreamWithCheckingPmemCache
+     * of community version of HDFS.
+     */
+    String cachePath = cacheManager.getReplicaCachePath(
+        b.getBlockPoolId(), b.getBlockId());
+    if (cachePath != null) {
+      LOG.info("Get InputStream from " + cachePath + " on persistent memory.");
+      return FsDatasetUtil.getInputStreamAndSeek(
+          new File(cachePath), seekOffset);
+    }
+
     if (isNativeIOAvailable) {
       return NativeIO.getShareDeleteFileInputStream(blockFile, seekOffset);
     } else {

@@ -28,7 +28,7 @@ import com.google.common.annotations.VisibleForTesting;
  * Keeps statistics for the memory cache.
  */
 @VisibleForTesting
-class MemoryCacheStats {
+public class MemoryCacheStats {
 
   /**
    * The approximate amount of cache space in use.
@@ -57,7 +57,7 @@ class MemoryCacheStats {
    * Used to count operating system page size.
    */
   @VisibleForTesting
-  static class PageRounder {
+  public static class PageRounder {
     private final long osPageSize = NativeIO.POSIX.getCacheManipulator()
         .getOperatingSystemPageSize();
 

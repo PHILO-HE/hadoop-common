@@ -58,7 +58,7 @@ import org.apache.hadoop.hdfs.protocol.ExtendedBlock;
 import org.apache.hadoop.hdfs.protocolPB.DatanodeProtocolClientSideTranslatorPB;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.FsDatasetSpi;
 import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetCache;
-import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.FsDatasetCache.PageRounder;
+import org.apache.hadoop.hdfs.server.datanode.fsdataset.impl.MemoryCacheStats.PageRounder;
 import org.apache.hadoop.hdfs.server.namenode.EditLogFileOutputStream;
 import org.apache.hadoop.hdfs.server.namenode.FSImage;
 import org.apache.hadoop.hdfs.server.namenode.NameNode;
@@ -347,7 +347,7 @@ public class TestFsDatasetCache {
     for (int i=0; i<numFiles-1; i++) {
       setHeartbeatResponse(cacheBlocks(fileLocs[i]));
       total = DFSTestUtil.verifyExpectedCacheUsage(
-          rounder.round(total + fileSizes[i]), 4 * (i + 1), fsd);
+          rounder.roundUp(total + fileSizes[i]), 4 * (i + 1), fsd);
     }
 
     // nth file should hit a capacity exception
@@ -373,7 +373,7 @@ public class TestFsDatasetCache {
     int curCachedBlocks = 16;
     for (int i=0; i<numFiles-1; i++) {
       setHeartbeatResponse(uncacheBlocks(fileLocs[i]));
-      long uncachedBytes = rounder.round(fileSizes[i]);
+      long uncachedBytes = rounder.roundUp(fileSizes[i]);
       total -= uncachedBytes;
       curCachedBlocks -= uncachedBytes / BLOCK_SIZE;
       DFSTestUtil.verifyExpectedCacheUsage(total, curCachedBlocks, fsd);
